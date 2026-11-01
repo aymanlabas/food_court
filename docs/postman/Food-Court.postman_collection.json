@@ -1,0 +1,289 @@
+{
+  "info": {
+    "name": "Food-Court API (V1 & V4)",
+    "_postman_id": "food-court-v4-collection",
+    "description": "Collection Postman pour l'API Food-Court (Gateway, Menu, Usagers, Commandes)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Authentication",
+      "item": [
+        {
+          "name": "Login - Admin",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@foodcourt.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+          }
+        },
+        {
+          "name": "Login - Employee (Alice)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"alice.dupont@foodcourt.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+          }
+        },
+        {
+          "name": "Register New Employee",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nom\": \"Jean Dupont\",\n  \"email\": \"jean.dupont@foodcourt.com\",\n  \"password\": \"password123\",\n  \"regimeAlimentaire\": \"Végétarien\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Menu & Dishes",
+      "item": [
+        {
+          "name": "Get All Dishes",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{jwtToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/dishes", "host": ["{{baseUrl}}"], "path": ["api", "dishes"] }
+          }
+        },
+        {
+          "name": "Get Available Dishes (Daily Menu)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{jwtToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/dishes/available", "host": ["{{baseUrl}}"], "path": ["api", "dishes", "available"] }
+          }
+        },
+        {
+          "name": "Create Dish (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{jwtToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nom\": \"Poke Bowl au Saumon\",\n  \"description\": \"Saumon mariné, riz vinaigré, avocat, edamame et sésame grillé.\",\n  \"prix\": 13.90,\n  \"categorie\": \"PLAT_PRINCIPAL\",\n  \"allergenes\": \"Poisson, Sésame, Soja\",\n  \"disponible\": true,\n  \"imageUrl\": \"https://images.unsplash.com/photo-1546069901-ba9599a7e63c\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/dishes", "host": ["{{baseUrl}}"], "path": ["api", "dishes"] }
+          }
+        },
+        {
+          "name": "Toggle Dish Availability",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{jwtToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/dishes/1/availability", "host": ["{{baseUrl}}"], "path": ["api", "dishes", "1", "availability"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Ingredients & Inventory",
+      "item": [
+        {
+          "name": "Get All Ingredients",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{jwtToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/ingredients", "host": ["{{baseUrl}}"], "path": ["api", "ingredients"] }
+          }
+        },
+        {
+          "name": "Get Low Stock Ingredients",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{jwtToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/ingredients/low-stock", "host": ["{{baseUrl}}"], "path": ["api", "ingredients", "low-stock"] }
+          }
+        },
+        {
+          "name": "Update Stock",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{jwtToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantite\": 50.000\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/ingredients/1/stock", "host": ["{{baseUrl}}"], "path": ["api", "ingredients", "1", "stock"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Users & Badge Balances",
+      "item": [
+        {
+          "name": "Get Current User Profile",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{jwtToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/users/me", "host": ["{{baseUrl}}"], "path": ["api", "users", "me"] }
+          }
+        },
+        {
+          "name": "List All Users (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{jwtToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/users", "host": ["{{baseUrl}}"], "path": ["api", "users"] }
+          }
+        },
+        {
+          "name": "Credit Badge Balance (Admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{jwtToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"montant\": 30.00\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/users/3/balance", "host": ["{{baseUrl}}"], "path": ["api", "users", "3", "balance"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Orders & Food Court Life Cycle (V4)",
+      "item": [
+        {
+          "name": "Create Order (Validate + Reserve + Debit)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{jwtToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": 3,\n  \"items\": [\n    {\n      \"dishId\": 1,\n      \"quantite\": 1\n    },\n    {\n      \"dishId\": 9,\n      \"quantite\": 1\n    }\n  ],\n  \"idempotencyKey\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/orders", "host": ["{{baseUrl}}"], "path": ["api", "orders"] }
+          }
+        },
+        {
+          "name": "Get Order By ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{jwtToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/orders/1", "host": ["{{baseUrl}}"], "path": ["api", "orders", "1"] }
+          }
+        },
+        {
+          "name": "Get User Orders History",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{jwtToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/orders/user/3", "host": ["{{baseUrl}}"], "path": ["api", "orders", "user", "3"] }
+          }
+        },
+        {
+          "name": "Get Kitchen Orders (Kanban)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{jwtToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/orders/kitchen", "host": ["{{baseUrl}}"], "path": ["api", "orders", "kitchen"] }
+          }
+        },
+        {
+          "name": "Update Order Status (e.g. PRET)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{jwtToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"statut\": \"PRET\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/orders/1/status", "host": ["{{baseUrl}}"], "path": ["api", "orders", "1", "status"] }
+          }
+        },
+        {
+          "name": "Cancel Order & Auto Refund",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{jwtToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/orders/1/cancel", "host": ["{{baseUrl}}"], "path": ["api", "orders", "1", "cancel"] }
+          }
+        },
+        {
+          "name": "Get Order Statistics",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{jwtToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/orders/stats", "host": ["{{baseUrl}}"], "path": ["api", "orders", "stats"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Notifications (V5 RabbitMQ)",
+      "item": [
+        {
+          "name": "Get User Notifications",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{jwtToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/notifications/user/3", "host": ["{{baseUrl}}"], "path": ["api", "notifications", "user", "3"] }
+          }
+        },
+        {
+          "name": "Get Unread Notifications Count",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{jwtToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/notifications/user/3/count", "host": ["{{baseUrl}}"], "path": ["api", "notifications", "user", "3", "count"] }
+          }
+        },
+        {
+          "name": "Mark Notification as Read",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{jwtToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/notifications/1/read", "host": ["{{baseUrl}}"], "path": ["api", "notifications", "1", "read"] }
+          }
+        },
+        {
+          "name": "Mark All as Read",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{jwtToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/notifications/user/3/read-all", "host": ["{{baseUrl}}"], "path": ["api", "notifications", "user", "3", "read-all"] }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "jwtToken",
+      "value": "YOUR_JWT_TOKEN_HERE"
+    }
+  ]
+}

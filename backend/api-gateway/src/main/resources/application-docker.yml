@@ -1,0 +1,6 @@
+# Docker profile – all configuration is externalized via environment variables.
+# This file activates the 'docker' profile marker.
+spring:
+  config:
+    activate:
+      on-profile: docker

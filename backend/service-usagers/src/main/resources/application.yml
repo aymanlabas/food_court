@@ -1,0 +1,58 @@
+spring:
+  application:
+    name: service-usagers
+
+  datasource:
+    url: ${DB_USAGERS_URL:jdbc:postgresql://localhost:5432/db_usagers}
+    username: ${DB_USAGERS_USERNAME:postgres}
+    password: ${DB_USAGERS_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    open-in-view: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+server:
+  port: ${SERVER_PORT:8083}
+
+jwt:
+  secret: ${JWT_SECRET:default-secret-key-for-development-only-change-in-production-must-be-at-least-512-bits-long-for-hs512}
+  expiration: ${JWT_EXPIRATION:86400000}
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+logging:
+  level:
+    com.foodcourt.usagers: DEBUG
+    org.springframework.security: DEBUG
+
+---
+spring:
+  config:
+    activate:
+      on-profile: docker
+
+  datasource:
+    url: ${DB_USAGERS_URL}
+    username: ${DB_USAGERS_USERNAME}
+    password: ${DB_USAGERS_PASSWORD}
+
+logging:
+  level:
+    com.foodcourt.usagers: INFO
+    org.springframework.security: WARN

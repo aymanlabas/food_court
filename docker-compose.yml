@@ -1,0 +1,214 @@
+services:
+
+  # ─── PostgreSQL ────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: foodcourt-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - foodcourt-network
+
+  # ─── Redis ─────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: foodcourt-redis
+    command: redis-server --requirepass ${REDIS_PASSWORD}
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - foodcourt-network
+
+  # ─── RabbitMQ (V5) ─────────────────────────────────────
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: foodcourt-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - foodcourt-network
+
+  # ─── Service Menu ──────────────────────────────────────
+  service-menu:
+    build:
+      context: ./backend
+      dockerfile: service-menu/Dockerfile
+    container_name: foodcourt-service-menu
+    environment:
+      SPRING_DATASOURCE_URL: ${DB_MENU_URL}
+      SPRING_DATASOURCE_USERNAME: ${DB_MENU_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${DB_MENU_PASSWORD}
+      SPRING_PROFILES_ACTIVE: docker
+      SERVER_PORT: ${SERVICE_MENU_PORT}
+    ports:
+      - "${SERVICE_MENU_PORT}:${SERVICE_MENU_PORT}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - foodcourt-network
+
+  # ─── Service Usagers ───────────────────────────────────
+  service-usagers:
+    build:
+      context: ./backend
+      dockerfile: service-usagers/Dockerfile
+    container_name: foodcourt-service-usagers
+    environment:
+      SPRING_DATASOURCE_URL: ${DB_USAGERS_URL}
+      SPRING_DATASOURCE_USERNAME: ${DB_USAGERS_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${DB_USAGERS_PASSWORD}
+      SPRING_PROFILES_ACTIVE: docker
+      SERVER_PORT: ${SERVICE_USAGERS_PORT}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION: ${JWT_EXPIRATION}
+    ports:
+      - "${SERVICE_USAGERS_PORT}:${SERVICE_USAGERS_PORT}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - foodcourt-network
+
+  # ─── Service Commandes (V4) ────────────────────────────
+  service-commandes:
+    build:
+      context: ./backend
+      dockerfile: service-commandes/Dockerfile
+    container_name: foodcourt-service-commandes
+    environment:
+      SPRING_DATASOURCE_URL: ${DB_COMMANDES_URL}
+      SPRING_DATASOURCE_USERNAME: ${DB_COMMANDES_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${DB_COMMANDES_PASSWORD}
+      SPRING_PROFILES_ACTIVE: docker
+      SERVER_PORT: ${SERVICE_COMMANDES_PORT}
+      SERVICE_MENU_URL: http://service-menu:${SERVICE_MENU_PORT}
+      SERVICE_USAGERS_URL: http://service-usagers:${SERVICE_USAGERS_PORT}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: ${RABBITMQ_PORT}
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+    ports:
+      - "${SERVICE_COMMANDES_PORT}:${SERVICE_COMMANDES_PORT}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      service-menu:
+        condition: service_started
+      service-usagers:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - foodcourt-network
+
+  # ─── Service Notification (V5) ─────────────────────────
+  service-notification:
+    build:
+      context: ./backend
+      dockerfile: service-notification/Dockerfile
+    container_name: foodcourt-service-notification
+    environment:
+      SPRING_DATASOURCE_URL: ${DB_NOTIFICATION_URL}
+      SPRING_DATASOURCE_USERNAME: ${DB_NOTIFICATION_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${DB_NOTIFICATION_PASSWORD}
+      SPRING_PROFILES_ACTIVE: docker
+      SERVER_PORT: ${SERVICE_NOTIFICATION_PORT}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: ${RABBITMQ_PORT}
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+    ports:
+      - "${SERVICE_NOTIFICATION_PORT}:${SERVICE_NOTIFICATION_PORT}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - foodcourt-network
+
+  # ─── API Gateway ───────────────────────────────────────
+  api-gateway:
+    build:
+      context: ./backend
+      dockerfile: api-gateway/Dockerfile
+    container_name: foodcourt-api-gateway
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SERVER_PORT: ${GATEWAY_PORT}
+      JWT_SECRET: ${JWT_SECRET}
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PORT: ${REDIS_PORT}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      SERVICE_MENU_URL: http://service-menu:${SERVICE_MENU_PORT}
+      SERVICE_COMMANDES_URL: http://service-commandes:${SERVICE_COMMANDES_PORT}
+      SERVICE_USAGERS_URL: http://service-usagers:${SERVICE_USAGERS_PORT}
+      SERVICE_NOTIFICATION_URL: http://service-notification:${SERVICE_NOTIFICATION_PORT}
+    ports:
+      - "${GATEWAY_PORT}:${GATEWAY_PORT}"
+    depends_on:
+      redis:
+        condition: service_healthy
+      service-menu:
+        condition: service_started
+      service-usagers:
+        condition: service_started
+      service-commandes:
+        condition: service_started
+      service-notification:
+        condition: service_started
+    networks:
+      - foodcourt-network
+
+  # ─── Frontend ──────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: foodcourt-frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - api-gateway
+    networks:
+      - foodcourt-network
+
+volumes:
+  postgres_data:
+  redis_data:
+  rabbitmq_data:
+
+networks:
+  foodcourt-network:
+    driver: bridge
+

@@ -1,0 +1,53 @@
+server:
+  port: ${GATEWAY_PORT:8080}
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      default-filters:
+        - DedupeResponseHeader=Access-Control-Allow-Credentials Access-Control-Allow-Origin
+      globalcors:
+        corsConfigurations:
+          '[/**]':
+            allowedOrigins:
+              - "http://localhost:5173"
+              - "http://localhost:3000"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - PATCH
+              - DELETE
+              - OPTIONS
+            allowedHeaders: "*"
+            allowCredentials: true
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+
+routes:
+  service-menu-url: ${SERVICE_MENU_URL:http://localhost:8081}
+  service-commandes-url: ${SERVICE_COMMANDES_URL:http://localhost:8082}
+  service-usagers-url: ${SERVICE_USAGERS_URL:http://localhost:8083}
+  service-notification-url: ${SERVICE_NOTIFICATION_URL:http://localhost:8084}
+
+jwt:
+  secret: ${JWT_SECRET:food-court-dev-secret-key-change-in-production-must-be-at-least-64-chars-long!!}
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+    urls:
+      - name: API Gateway
+        url: /v3/api-docs
+
+logging:
+  level:
+    org.springframework.cloud.gateway: INFO
+    com.foodcourt.gateway: DEBUG

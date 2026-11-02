@@ -21,3 +21,4 @@ public class OrderPlacedEvent {
     @Builder.Default
     private Instant timestamp = Instant.now();
 }
+

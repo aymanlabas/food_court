@@ -48,3 +48,4 @@ public class OutboxEvent {
     @Column(name = "processed_at")
     private Instant processedAt;
 }
+

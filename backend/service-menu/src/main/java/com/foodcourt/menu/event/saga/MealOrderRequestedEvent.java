@@ -23,3 +23,4 @@ public class MealOrderRequestedEvent {
     @Builder.Default
     private Instant timestamp = Instant.now();
 }
+

@@ -5,3 +5,4 @@ public enum OutboxStatus {
     PUBLISHED,
     FAILED
 }
+

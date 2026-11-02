@@ -22,3 +22,4 @@ public class MealPaymentFailedEvent {
     @Builder.Default
     private Instant timestamp = Instant.now();
 }
+

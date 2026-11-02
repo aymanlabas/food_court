@@ -24,3 +24,4 @@ public class ProcessedEvent {
     @Builder.Default
     private Instant processedAt = Instant.now();
 }
+

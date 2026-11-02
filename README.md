@@ -131,6 +131,7 @@ docker compose up --build
 Services démarrés :
 - **Frontend** : http://localhost:5173
 - **API Gateway** : http://localhost:8080
+- **Eureka Discovery Server** : http://localhost:8761
 - **Swagger Service Menu** : http://localhost:8081/swagger-ui.html
 - **Swagger Service Commandes** : http://localhost:8082/swagger-ui.html
 - **Swagger Service Usagers** : http://localhost:8083/swagger-ui.html

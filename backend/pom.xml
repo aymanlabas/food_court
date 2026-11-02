@@ -19,6 +19,7 @@
     <description>Enterprise Cafeteria Food Ordering Platform</description>
 
     <modules>
+        <module>eureka-server</module>
         <module>service-menu</module>
         <module>service-usagers</module>
         <module>api-gateway</module>

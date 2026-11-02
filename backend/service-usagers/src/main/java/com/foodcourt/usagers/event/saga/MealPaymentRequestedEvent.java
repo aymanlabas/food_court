@@ -21,3 +21,4 @@ public class MealPaymentRequestedEvent {
     @Builder.Default
     private Instant timestamp = Instant.now();
 }
+

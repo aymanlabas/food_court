@@ -107,3 +107,4 @@ class NotificationKafkaConsumerTest {
         verify(notificationRepository, never()).save(any());
     }
 }
+

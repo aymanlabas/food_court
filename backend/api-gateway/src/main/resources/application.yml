@@ -30,10 +30,19 @@ spring:
       password: ${REDIS_PASSWORD:}
 
 routes:
-  service-menu-url: ${SERVICE_MENU_URL:http://localhost:8081}
-  service-commandes-url: ${SERVICE_COMMANDES_URL:http://localhost:8082}
-  service-usagers-url: ${SERVICE_USAGERS_URL:http://localhost:8083}
-  service-notification-url: ${SERVICE_NOTIFICATION_URL:http://localhost:8084}
+  service-menu-url: ${SERVICE_MENU_URL:lb://service-menu}
+  service-commandes-url: ${SERVICE_COMMANDES_URL:lb://service-commandes}
+  service-usagers-url: ${SERVICE_USAGERS_URL:lb://service-usagers}
+  service-notification-url: ${SERVICE_NOTIFICATION_URL:lb://service-notification}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
 
 jwt:
   secret: ${JWT_SECRET:food-court-dev-secret-key-change-in-production-must-be-at-least-64-chars-long!!}

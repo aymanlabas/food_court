@@ -19,3 +19,4 @@ public class IngredientsRejectedEvent {
     @Builder.Default
     private Instant timestamp = Instant.now();
 }
+

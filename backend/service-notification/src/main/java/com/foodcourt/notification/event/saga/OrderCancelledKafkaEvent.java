@@ -22,3 +22,4 @@ public class OrderCancelledKafkaEvent {
     @Builder.Default
     private Instant timestamp = Instant.now();
 }
+

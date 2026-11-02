@@ -45,11 +45,20 @@ spring:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
 
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
+
 services:
   service-menu:
-    url: ${SERVICE_MENU_URL:http://localhost:8081}
+    url: ${SERVICE_MENU_URL:http://service-menu:8081}
   service-usagers:
-    url: ${SERVICE_USAGERS_URL:http://localhost:8083}
+    url: ${SERVICE_USAGERS_URL:http://service-usagers:8083}
 
 springdoc:
   api-docs:

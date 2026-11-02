@@ -19,3 +19,4 @@ public class OrderReadyEvent {
     @Builder.Default
     private Instant timestamp = Instant.now();
 }
+

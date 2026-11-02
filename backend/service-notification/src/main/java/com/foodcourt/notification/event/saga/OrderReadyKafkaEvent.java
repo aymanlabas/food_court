@@ -21,3 +21,4 @@ public class OrderReadyKafkaEvent {
     @Builder.Default
     private Instant timestamp = Instant.now();
 }
+

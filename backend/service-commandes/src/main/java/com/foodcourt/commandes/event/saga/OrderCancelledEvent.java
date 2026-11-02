@@ -22,3 +22,4 @@ public class OrderCancelledEvent {
     @Builder.Default
     private Instant timestamp = Instant.now();
 }
+

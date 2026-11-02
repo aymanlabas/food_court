@@ -14,3 +14,4 @@ export const markAsRead = (id) =>
 
 export const markAllAsRead = (userId) =>
   api.patch(`/notifications/user/${userId}/read-all`).then((r) => r.data);
+

@@ -22,3 +22,4 @@ public class NotificationResponse {
     private UUID eventId;
     private LocalDateTime createdAt;
 }
+

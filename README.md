@@ -52,13 +52,31 @@
   - Stockage persistant des alertes repas.
   - Endpoints REST `/api/notifications/user/{userId}` pour consultation, filtrage non lus et marquage comme lu.
 
-### 5. API Gateway Réactif (`api-gateway` :8080)
+### 5. Architecture Événementielle Kafka & Saga Chorégraphiée (V7) — NOUVEAU V7
+- **Chorégraphie Saga Distribuée** :
+  - `meal-order-requested` : initié par `service-commandes` lors du passage de commande.
+  - `ingredients-reserved` / `ingredients-rejected` : publié par `service-menu` après vérification atomique des stocks recettes.
+  - `meal-payment-requested` : orchestré par `service-commandes` pour déclencher le débit badge.
+  - `meal-payment-succeeded` / `meal-payment-failed` : publié par `service-usagers` après transaction locale de débit.
+  - `order-placed` : confirmation de mise en préparation de la commande et déstockage définitif.
+  - `order-ready` : émis lors du passage de la commande au statut `PRET` en cuisine.
+  - `order-cancelled` : déclenche la compensation distribuée (remboursement automatique badge collaborateur et restitution des ingrédients en stock).
+- **Pattern Transactional Outbox** :
+  - Table `outbox_events` et `processed_events` dans chaque microservice.
+  - Les modifications métier et l'événement sont enregistrés dans la **même transaction locale**.
+  - Démon d'arrière-plan avec retries exponentielles et garantie de livraison *at-least-once*.
+- **Résilience & Dead Letter Topics (DLT)** :
+  - Configuration de `DefaultErrorHandler` avec renvoi automatique vers `<topic>.DLT` après épuisement des tentatives.
+  - Déduplication et idempotence stricte via `event_id` et clé de corrélation (`correlationId`).
+- **Kafka UI** : Interface de gestion et supervision des clusters, topics, offsets et messages disponible sur `http://localhost:8090`.
+
+### 6. API Gateway Réactif (`api-gateway` :8080)
 - **Routage dynamique** : Redirection transparente de `/api/dishes/**`, `/api/ingredients/**`, `/api/auth/**`, `/api/users/**`, `/api/payments/**`, `/api/orders/**`, et `/api/notifications/**`.
 - **Filtre JWT global** : Validation précoce des requêtes et transmission des headers `X-User-Id`, `X-User-Email`, `X-User-Role` aux microservices avals.
 - **CORS unifié** : Autorisation des requêtes du frontend Vite (port 5173).
 - **Rate Limiting Redis** : Protection des endpoints avec limitation de débit.
 
-### 6. Frontend SaaS Professionnel (`frontend` :5173)
+### 7. Frontend SaaS Professionnel (`frontend` :5173)
 - **Centre de Notifications en Direct** : Cloche interactive dans la barre de navigation avec compteur de pastilles d'alertes non lues et menu déroulant d'accès direct au suivi de commande.
 - **Panier Repas & Commande Badge** : Steppers de quantité, estimation, vérification visuelle de solde, passage de commande en un clic.
 - **Suivi de Commande en Temps Réel** : Timeline pas à pas, rafraîchissement automatique, bouton d'annulation avec avertissement de remboursement.
@@ -118,6 +136,8 @@ Services démarrés :
 - **Swagger Service Usagers** : http://localhost:8083/swagger-ui.html
 - **Swagger Service Notification** : http://localhost:8084/swagger-ui.html
 - **RabbitMQ Management** : http://localhost:15672 (guest / guest)
+- **Kafka UI** : http://localhost:8090
+- **Kafka Broker** : localhost:9092
 - **PostgreSQL** : localhost:5432
 - **Redis** : localhost:6379
 

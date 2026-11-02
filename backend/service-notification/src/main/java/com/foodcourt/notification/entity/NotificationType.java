@@ -5,3 +5,4 @@ public enum NotificationType {
     COMMANDE_ANNULEE,
     INFO
 }
+

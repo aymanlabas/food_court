@@ -21,3 +21,4 @@ public class OrderReadyEvent implements Serializable {
     private BigDecimal montantTotal;
     private List<String> dishNames;
 }
+

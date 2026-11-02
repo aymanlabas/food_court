@@ -40,6 +40,9 @@ public class MealOrder {
     @Column(name = "idempotency_key", nullable = false, unique = true)
     private UUID idempotencyKey;
 
+    @Column(name = "correlation_id")
+    private String correlationId;
+
     @OneToMany(mappedBy = "mealOrder", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     @Builder.Default
     private List<OrderItem> items = new ArrayList<>();

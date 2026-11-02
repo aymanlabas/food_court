@@ -18,3 +18,4 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
 
     boolean existsByEventId(UUID eventId);
 }
+

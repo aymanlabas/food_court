@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -31,6 +32,7 @@ public class OrderService {
     private final UsagerServiceClient usagerServiceClient;
     private final OrderMapper orderMapper;
     private final com.foodcourt.commandes.event.OrderEventPublisher orderEventPublisher;
+    private final com.foodcourt.commandes.outbox.OutboxPublisher outboxPublisher;
 
     /**
      * Création d'une commande avec orchestration transactionnelle distribuée (V4 - OpenFeign).
@@ -124,15 +126,18 @@ public class OrderService {
         // Pour V4 sans Kafka, on réserve les stocks
         // Note: l'appel checkDishesAvailability a confirmé la faisabilité
         // On crée l'entité MealOrder en base locale
+        String correlationId = UUID.randomUUID().toString();
         MealOrder order = MealOrder.builder()
                 .userId(request.getUserId())
                 .date(LocalDateTime.now())
                 .montantTotal(montantTotal)
                 .statut(OrderStatus.RECU)
                 .idempotencyKey(request.getIdempotencyKey())
+                .correlationId(correlationId)
                 .items(new ArrayList<>())
                 .build();
 
+        List<com.foodcourt.commandes.event.saga.OrderItemPayload> eventItems = new ArrayList<>();
         for (OrderItemRequest itemReq : request.getItems()) {
             DishValidationResponse dish = validatedDishes.get(itemReq.getDishId());
             OrderItem item = OrderItem.builder()
@@ -141,9 +146,30 @@ public class OrderService {
                     .prixUnitaire(dish.getPrix())
                     .build();
             order.addItem(item);
+
+            eventItems.add(com.foodcourt.commandes.event.saga.OrderItemPayload.builder()
+                    .dishId(itemReq.getDishId())
+                    .dishName(dish.getNom())
+                    .quantity(itemReq.getQuantite())
+                    .unitPrice(dish.getPrix())
+                    .build());
         }
 
         MealOrder savedOrder = mealOrderRepository.save(order);
+
+        // V7 Kafka: Enqueue MealOrderRequestedEvent to Transactional Outbox
+        com.foodcourt.commandes.event.saga.MealOrderRequestedEvent orderRequestedEvent =
+                com.foodcourt.commandes.event.saga.MealOrderRequestedEvent.builder()
+                        .eventId(UUID.randomUUID().toString())
+                        .correlationId(correlationId)
+                        .orderId(savedOrder.getId())
+                        .userId(savedOrder.getUserId())
+                        .items(eventItems)
+                        .totalAmount(montantTotal)
+                        .timestamp(Instant.now())
+                        .build();
+        outboxPublisher.enqueue("MealOrder", savedOrder.getId().toString(),
+                "MealOrderRequestedEvent", com.foodcourt.commandes.config.KafkaTopics.MEAL_ORDER_REQUESTED, orderRequestedEvent);
 
         // 6. Règle 7 & 8 : Débit du badge cantine
         DebitRequest debitReq = DebitRequest.builder()
@@ -162,6 +188,19 @@ public class OrderService {
             savedOrder.setStatut(OrderStatus.EN_PREPARATION);
             savedOrder = mealOrderRepository.save(savedOrder);
 
+            // V7 Kafka: Enqueue OrderPlacedEvent
+            com.foodcourt.commandes.event.saga.OrderPlacedEvent orderPlacedEvent =
+                    com.foodcourt.commandes.event.saga.OrderPlacedEvent.builder()
+                            .eventId(UUID.randomUUID().toString())
+                            .correlationId(correlationId)
+                            .orderId(savedOrder.getId())
+                            .userId(savedOrder.getUserId())
+                            .totalAmount(montantTotal)
+                            .timestamp(Instant.now())
+                            .build();
+            outboxPublisher.enqueue("MealOrder", savedOrder.getId().toString(),
+                    "OrderPlacedEvent", com.foodcourt.commandes.config.KafkaTopics.ORDER_PLACED, orderPlacedEvent);
+
         } catch (Exception e) {
             log.error("Payment failed for order {}: {}. Rolling back order and releasing ingredients.",
                     savedOrder.getId(), e.getMessage());
@@ -169,6 +208,19 @@ public class OrderService {
             // Compensation : Règle 7 - Libération des ingrédients et marquage commande annulée
             savedOrder.setStatut(OrderStatus.ANNULE);
             mealOrderRepository.save(savedOrder);
+
+            // V7 Kafka: Enqueue OrderCancelledEvent
+            com.foodcourt.commandes.event.saga.OrderCancelledEvent cancelEvent =
+                    com.foodcourt.commandes.event.saga.OrderCancelledEvent.builder()
+                            .eventId(UUID.randomUUID().toString())
+                            .correlationId(correlationId)
+                            .orderId(savedOrder.getId())
+                            .userId(savedOrder.getUserId())
+                            .reason("Paiement échoué : " + e.getMessage())
+                            .timestamp(Instant.now())
+                            .build();
+            outboxPublisher.enqueue("MealOrder", savedOrder.getId().toString(),
+                    "OrderCancelledEvent", com.foodcourt.commandes.config.KafkaTopics.ORDER_CANCELLED, cancelEvent);
 
             throw new PaymentFailedException("Échec du débit du badge : " + e.getMessage());
         }
@@ -237,6 +289,18 @@ public class OrderService {
                     })
                     .collect(Collectors.toList());
             orderEventPublisher.publishOrderReady(updated, dishNames);
+
+            // V7 Kafka: Enqueue OrderReadyEvent
+            com.foodcourt.commandes.event.saga.OrderReadyEvent readyEvent =
+                    com.foodcourt.commandes.event.saga.OrderReadyEvent.builder()
+                            .eventId(UUID.randomUUID().toString())
+                            .correlationId(updated.getCorrelationId() != null ? updated.getCorrelationId() : UUID.randomUUID().toString())
+                            .orderId(updated.getId())
+                            .userId(updated.getUserId())
+                            .timestamp(Instant.now())
+                            .build();
+            outboxPublisher.enqueue("MealOrder", updated.getId().toString(),
+                    "OrderReadyEvent", com.foodcourt.commandes.config.KafkaTopics.ORDER_READY, readyEvent);
         }
 
         return enrichOrderResponse(orderMapper.toResponse(updated));
@@ -278,6 +342,20 @@ public class OrderService {
 
         // V5 : Publication événement RabbitMQ commande annulée
         orderEventPublisher.publishOrderCancelled(updated, "Annulation confirmée avec remboursement badge");
+
+        // V7 Kafka: Enqueue OrderCancelledEvent
+        com.foodcourt.commandes.event.saga.OrderCancelledEvent cancelEvent =
+                com.foodcourt.commandes.event.saga.OrderCancelledEvent.builder()
+                        .eventId(UUID.randomUUID().toString())
+                        .correlationId(updated.getCorrelationId() != null ? updated.getCorrelationId() : UUID.randomUUID().toString())
+                        .orderId(updated.getId())
+                        .userId(updated.getUserId())
+                        .reason("Annulation confirmée")
+                        .refundedAmount(updated.getMontantTotal())
+                        .timestamp(Instant.now())
+                        .build();
+        outboxPublisher.enqueue("MealOrder", updated.getId().toString(),
+                "OrderCancelledEvent", com.foodcourt.commandes.config.KafkaTopics.ORDER_CANCELLED, cancelEvent);
 
         return enrichOrderResponse(orderMapper.toResponse(updated));
     }

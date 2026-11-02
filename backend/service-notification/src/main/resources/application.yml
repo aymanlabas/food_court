@@ -32,6 +32,16 @@ spring:
     username: ${RABBITMQ_USERNAME:guest}
     password: ${RABBITMQ_PASSWORD:guest}
 
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: service-notification-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+
 springdoc:
   api-docs:
     path: /v3/api-docs
@@ -54,3 +64,4 @@ spring:
     url: ${DB_NOTIFICATION_URL}
     username: ${DB_NOTIFICATION_USERNAME}
     password: ${DB_NOTIFICATION_PASSWORD}
+

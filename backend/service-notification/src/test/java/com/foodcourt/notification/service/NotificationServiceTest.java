@@ -125,3 +125,4 @@ class NotificationServiceTest {
         verify(notificationRepository, times(1)).save(notification);
     }
 }
+

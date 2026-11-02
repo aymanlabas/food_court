@@ -39,6 +39,12 @@ class OrderServiceTest {
     @Mock
     private OrderMapper orderMapper;
 
+    @Mock
+    private com.foodcourt.commandes.event.OrderEventPublisher orderEventPublisher;
+
+    @Mock
+    private com.foodcourt.commandes.outbox.OutboxPublisher outboxPublisher;
+
     @InjectMocks
     private OrderService orderService;
 

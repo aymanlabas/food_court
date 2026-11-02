@@ -30,3 +30,4 @@ public class NotificationRabbitConsumer {
         notificationService.processOrderCancelled(event);
     }
 }
+

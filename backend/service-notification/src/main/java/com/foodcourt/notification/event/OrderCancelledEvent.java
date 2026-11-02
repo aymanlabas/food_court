@@ -20,3 +20,4 @@ public class OrderCancelledEvent implements Serializable {
     private BigDecimal refundedAmount;
     private String reason;
 }
+

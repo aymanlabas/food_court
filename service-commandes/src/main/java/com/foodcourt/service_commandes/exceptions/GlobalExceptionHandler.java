@@ -14,7 +14,7 @@ import java.util.Map;
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(ResourceNotFoundException.class)
-    public <ResponseEntity> handleNotFound(ResourceNotFoundException ex) {
+    public ResponseEntity<Map<String, Object>> handleNotFound(ResourceNotFoundException ex) {
         Map<String, Object> error = new HashMap<>();
         error.put("timestamp", LocalDateTime.now());
         error.put("status", HttpStatus.NOT_FOUND.value());
@@ -24,7 +24,7 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public <ResponseEntity> handleValidationErrors(MethodArgumentNotValidException ex) {
+    public ResponseEntity<Map<String, Object>> handleValidationErrors(MethodArgumentNotValidException ex) {
         Map<String, Object> response = new HashMap<>();
         Map<String, String> fieldErrors = new HashMap<>();
 

@@ -1,0 +1,137 @@
+{
+	"info": {
+		"_postman_id": "b1a2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
+		"name": "FoodCourt - Service Commandes (V1.0)",
+		"description": "Collection de tests pour la validation des opérations CRUD du microservice service-commandes",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1. Créer une commande (201 Created)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"userId\": 1,\n  \"items\": [\n    {\n      \"dishId\": 101,\n      \"quantite\": 2,\n      \"prixUnitaire\": 45.0\n    },\n    {\n      \"dishId\": 102,\n      \"quantite\": 1,\n      \"prixUnitaire\": 20.0\n    }\n  ]\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8081/api/orders",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8081",
+					"path": [
+						"api",
+						"orders"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "2. Validation Error - Champs Invalides (400 Bad Request)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"userId\": null,\n  \"items\": [\n    {\n      \"dishId\": 101,\n      \"quantite\": -3,\n      \"prixUnitaire\": 0.0\n    }\n  ]\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8081/api/orders",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8081",
+					"path": [
+						"api",
+						"orders"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "3. Obtenir toutes les commandes (200 OK)",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8081/api/orders",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8081",
+					"path": [
+						"api",
+						"orders"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "4. Commande Inexistante (404 Not Found)",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8081/api/orders/9999",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8081",
+					"path": [
+						"api",
+						"orders",
+						"9999"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "5. Modifier statut de la commande (200 OK)",
+			"request": {
+				"method": "PATCH",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8081/api/orders/1/status?status=EN_PREPARATION",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8081",
+					"path": [
+						"api",
+						"orders",
+						"1",
+						"status"
+					],
+					"query": [
+						{
+							"key": "status",
+							"value": "EN_PREPARATION"
+						}
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}

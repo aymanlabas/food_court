@@ -17,6 +17,29 @@ Système distribué de gestion des commandes de repas pour les collaborateurs d'
 | **service-usagers** | Gestion des collaborateurs (`User`), solde cantine et paiements | `8083` |
 | **service-notification** | Consommation des événements et envoi des alertes emails | `8084` |
 
+### Démarrage local
+
+Depuis la racine du projet, lancer les modules dans cet ordre :
+
+```bash
+mvn -pl eureka-server spring-boot:run
+mvn -pl config-server spring-boot:run
+mvn -pl service-commandes spring-boot:run
+mvn -pl service-notification spring-boot:run
+mvn -pl api-gateway spring-boot:run
+```
+
+Le Config Server lit `config-repo/` (modifiable avec `CONFIG_REPO_PATH`). La gateway expose les commandes via
+`/api/orders/**`, les notifications via `/api/notifications/**` et les usagers via `/api/usagers/**`.
+
+Le service `service-usagers` expose la gestion des clients, restaurants et livreurs sur le port `8083`.
+
+### API notifications
+
+- `POST /api/notifications` crée une notification (`userId`, `recipient`, `type`, `message`, et éventuellement `orderId`).
+- `GET /api/notifications/user/{userId}` retourne les notifications d’un collaborateur.
+- `PATCH /api/notifications/{id}/read` marque une notification comme lue.
+
 ### Schéma d'Architecture Logique
 
 ```text
@@ -121,4 +144,3 @@ classDiagram
     OrderItem ..> Dish : référence par dishId ---->
     Payment ..> MealOrder : référence par mealOrderId ---->
 ```
-

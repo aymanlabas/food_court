@@ -1,0 +1,9 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Service Commandes" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot">
+    <module name="service-commandes" />
+    <option name="SPRING_BOOT_MAIN_CLASS" value="com.foodcourt.service_commandes.ServiceCommandesApplication" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>

@@ -22,6 +22,7 @@
         <module>eureka-server</module>
         <module>service-commandes</module>
         <module>api-gateway</module>
+        <module>config-server</module>
     </modules>
 
     <properties>

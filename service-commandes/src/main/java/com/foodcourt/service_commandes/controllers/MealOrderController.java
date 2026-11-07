@@ -6,6 +6,7 @@ import com.foodcourt.service_commandes.entities.OrderStatus;
 import com.foodcourt.service_commandes.services.MealOrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -17,7 +18,11 @@ import java.util.List;
 @RequiredArgsConstructor
 public class MealOrderController {
 
+    // http://localhost:8080/api/orders/config-test
     private final MealOrderService orderService;
+    @Value("${foodcourt.message.bienvenue:Message par defaut}")
+
+    private String messageBienvenue;
 
     @PostMapping
     public ResponseEntity<MealOrderResponseDTO> createOrder(@Valid @RequestBody MealOrderRequestDTO dto) {
@@ -39,5 +44,10 @@ public class MealOrderController {
             @PathVariable Long id,
             @RequestParam OrderStatus status) {
         return ResponseEntity.ok(orderService.updateStatus(id, status));
+    }
+
+    @GetMapping("/config-test")
+    public ResponseEntity<String> testConfig() {
+        return ResponseEntity.ok(messageBienvenue);
     }
 }

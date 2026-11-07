@@ -40,6 +40,7 @@ Système distribué de gestion des commandes de repas pour les collaborateurs d'
   |  [DB: commandes] |        |    [DB: menu]    |        |   [DB: usagers]  |
   +------------------+        +------------------+        +------------------+
 
+
 ```
 ## 3. Diagramme de Classes UML Global (Gestion des Références Distantes)
 
@@ -120,3 +121,4 @@ classDiagram
     OrderItem ..> Dish : référence par dishId ---->
     Payment ..> MealOrder : référence par mealOrderId ---->
 ```
+

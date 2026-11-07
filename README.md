@@ -39,3 +39,86 @@ Système distribué de gestion des commandes de repas pour les collaborateurs d'
   |   (Port: 8081)   |        |   (Port: 8082)   |        |   (Port: 8083)   |
   |  [DB: commandes] |        |    [DB: menu]    |        |   [DB: usagers]  |
   +------------------+        +------------------+        +------------------+
+
+
+```
+## 3. Diagramme de Classes UML Global (Gestion des Références Distantes)
+
+```mermaid
+classDiagram
+    namespace Service_Commandes {
+        class MealOrder {
+            +Long id
+            +Long userId
+            +LocalDateTime date
+            +Double montantTotal
+            +OrderStatus statut
+        }
+        class OrderItem {
+            +Long id
+            +Long dishId
+            +int quantite
+            +Double prixUnitaire
+        }
+        class OrderStatus {
+            <<enumeration>>
+            RECU
+            EN_PREPARATION
+            PRET
+            SERVI
+            ANNULE
+        }
+    }
+
+    namespace Service_Usagers {
+        class User {
+            +Long id
+            +String nom
+            +String email
+            +Double soldeCantine
+            +String regimeAlimentaire
+        }
+        class Payment {
+            +Long id
+            +Long mealOrderId
+            +Double montant
+            +String moyen
+            +String statut
+        }
+    }
+
+    namespace Service_Menu {
+        class Dish {
+            +Long id
+            +String nom
+            +Double prix
+            +String categorie
+            +String allergenes
+            +Boolean disponible
+        }
+        class Ingredient {
+            +Long id
+            +String nom
+            +Double stock
+            +String unite
+            +Double seuilAlerte
+        }
+        class RecipeLine {
+            +Long id
+            +Long dishId
+            +Long ingredientId
+            +Double quantite
+        }
+    }
+
+    MealOrder "1" *-- "1..*" OrderItem : contient
+    MealOrder --> OrderStatus : statut
+    User "1" --> "0..*" Payment : effectue
+    Dish "1" *-- "0..*" RecipeLine : compose
+    Ingredient "1" *-- "0..*" RecipeLine : utilise
+
+    MealOrder ..> User : référence par userId ---->
+    OrderItem ..> Dish : référence par dishId ---->
+    Payment ..> MealOrder : référence par mealOrderId ---->
+```
+

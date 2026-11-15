@@ -2,6 +2,7 @@ package com.foodcourt.service_commandes.controllers;
 
 import com.foodcourt.service_commandes.dtos.MealOrderRequestDTO;
 import com.foodcourt.service_commandes.dtos.MealOrderResponseDTO;
+import com.foodcourt.service_commandes.dtos.feign.OrderEnrichedResponseDTO;
 import com.foodcourt.service_commandes.entities.OrderStatus;
 import com.foodcourt.service_commandes.services.MealOrderService;
 import jakarta.validation.Valid;
@@ -49,5 +50,10 @@ public class MealOrderController {
     @GetMapping("/config-test")
     public ResponseEntity<String> testConfig() {
         return ResponseEntity.ok(messageBienvenue);
+    }
+
+    @GetMapping("/{id}/enrichie")
+    public ResponseEntity<OrderEnrichedResponseDTO> getOrderEnrichedById(@PathVariable Long id) {
+        return ResponseEntity.ok(orderService.getOrderEnrichedById(id));
     }
 }

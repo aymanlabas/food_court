@@ -21,6 +21,13 @@
 	</properties>
 
 	<dependencies>
+
+		<!-- RabbitMQ (AMQP) -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-amqp</artifactId>
+		</dependency>
+
 		<!-- Config Client pour charger la config depuis Config Server -->
 		<dependency>
 			<groupId>org.springframework.cloud</groupId>

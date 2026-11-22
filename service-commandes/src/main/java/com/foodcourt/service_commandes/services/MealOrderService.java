@@ -5,6 +5,7 @@ import com.foodcourt.service_commandes.clients.MenuFeignClient;
 import com.foodcourt.service_commandes.dtos.MealOrderRequestDTO;
 import com.foodcourt.service_commandes.dtos.MealOrderResponseDTO;
 import com.foodcourt.service_commandes.dtos.OrderItemDTO;
+import com.foodcourt.service_commandes.dtos.OrderNotificationEvent;
 import com.foodcourt.service_commandes.dtos.feign.ClientDTO;
 import com.foodcourt.service_commandes.dtos.feign.DishDTO;
 import com.foodcourt.service_commandes.dtos.feign.OrderEnrichedResponseDTO;
@@ -14,6 +15,7 @@ import com.foodcourt.service_commandes.entities.OrderStatus;
 import com.foodcourt.service_commandes.exceptions.ResourceNotFoundException;
 import com.foodcourt.service_commandes.repositories.MealOrderRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,16 +29,17 @@ public class MealOrderService {
     private final MealOrderRepository orderRepository;
     private final ClientFeignClient clientFeignClient;
     private final MenuFeignClient menuFeignClient;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public MealOrderResponseDTO createOrder(MealOrderRequestDTO dto) {
-        // 1. Validation préalable du client via OpenFeign (service-usagers)
+        // 1. Validation préalable du client via OpenFeign
         ClientDTO client = clientFeignClient.getClientById(dto.userId());
         if (client != null && Boolean.FALSE.equals(client.getActif())) {
             throw new IllegalArgumentException("Le compte client ID " + dto.userId() + " est désactivé.");
         }
 
-        // 2. Validation préalable des plats via OpenFeign (service-menu)
+        // 2. Validation préalable des plats via OpenFeign
         for (OrderItemDTO item : dto.items()) {
             DishDTO dish = menuFeignClient.getDishById(item.dishId());
             if (dish != null && Boolean.FALSE.equals(dish.getDisponible())) {
@@ -66,6 +69,20 @@ public class MealOrderService {
 
         order.setItems(items);
         MealOrder saved = orderRepository.save(order);
+
+        // 3. Déclencher l'événement après validation de la transaction
+        String email = (client != null && client.getEmail() != null)
+                ? client.getEmail()
+                : "client" + dto.userId() + "@foodcourt.ma";
+
+        eventPublisher.publishEvent(new OrderNotificationEvent(
+                saved.getUserId(),
+                saved.getId(),
+                email,
+                "COMMANDE_RECUE",
+                "Votre commande #" + saved.getId() + " d'un montant de " + saved.getMontantTotal() + " MAD a bien été reçue."
+        ));
+
         return mapToDTO(saved);
     }
 
@@ -79,15 +96,12 @@ public class MealOrderService {
         return mapToDTO(order);
     }
 
-    // Endpoint V4 : Agrégation & Consultation Enrichie
     public OrderEnrichedResponseDTO getOrderEnrichedById(Long id) {
         MealOrder order = orderRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Commande non trouvée avec ID : " + id));
 
-        // Appel synchrone vers service-usagers
         ClientDTO client = clientFeignClient.getClientById(order.getUserId());
 
-        // Appel synchrone vers service-menu pour chaque plat
         List<OrderEnrichedResponseDTO.EnrichedItemDTO> enrichedItems = order.getItems().stream()
                 .map(it -> {
                     DishDTO dish = menuFeignClient.getDishById(it.getDishId());
@@ -117,7 +131,28 @@ public class MealOrderService {
         MealOrder order = orderRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Commande non trouvée avec ID : " + id));
         order.setStatut(newStatus);
-        return mapToDTO(orderRepository.save(order));
+        MealOrder saved = orderRepository.save(order);
+
+        ClientDTO client = clientFeignClient.getClientById(saved.getUserId());
+        String email = (client != null && client.getEmail() != null)
+                ? client.getEmail()
+                : "client" + saved.getUserId() + "@foodcourt.ma";
+
+        String notifType = switch (newStatus.name()) {
+            case "PRETE", "PRETE_A_LIVRER", "LIVREE" -> "COMMANDE_PRETE";
+            case "ANNULE", "ANNULEE" -> "COMMANDE_ANNULEE";
+            default -> "INFORMATION";
+        };
+
+        eventPublisher.publishEvent(new OrderNotificationEvent(
+                saved.getUserId(),
+                saved.getId(),
+                email,
+                notifType,
+                "Le statut de votre commande #" + saved.getId() + " est désormais : " + newStatus
+        ));
+
+        return mapToDTO(saved);
     }
 
     private MealOrderResponseDTO mapToDTO(MealOrder order) {

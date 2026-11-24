@@ -79,11 +79,11 @@
 			<scope>runtime</scope>
 		</dependency>
 
-		<!-- Base H2 (seulement pour les tests) -->
+		<!-- Base H2 -->
 		<dependency>
 			<groupId>com.h2database</groupId>
 			<artifactId>h2</artifactId>
-			<scope>test</scope>
+			<scope>runtime</scope>
 		</dependency>
 
 		<!-- Lombok -->

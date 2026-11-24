@@ -39,6 +39,13 @@ public class Client {
     @Column(nullable = false)
     private boolean actif = true;
 
+    /**
+     * Solde du badge cantine en MAD.
+     * Utilisé pour le paiement (V4 OpenFeign : service-usagers → service-commandes).
+     */
+    @Column(nullable = false)
+    private double solde = 0.0;
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private Instant creeLe;

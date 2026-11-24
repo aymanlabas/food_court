@@ -86,6 +86,7 @@ public class ClientService {
                 client.getTelephone(),
                 client.getAdresseLivraison(),
                 client.isActif(),
+                client.getSolde(),
                 client.getCreeLe()
         );
     }

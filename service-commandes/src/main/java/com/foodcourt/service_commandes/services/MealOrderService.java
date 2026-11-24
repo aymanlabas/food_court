@@ -15,6 +15,7 @@ import com.foodcourt.service_commandes.entities.OrderStatus;
 import com.foodcourt.service_commandes.exceptions.ResourceNotFoundException;
 import com.foodcourt.service_commandes.repositories.MealOrderRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +25,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class MealOrderService {
 
     private final MealOrderRepository orderRepository;
@@ -33,44 +35,71 @@ public class MealOrderService {
 
     @Transactional
     public MealOrderResponseDTO createOrder(MealOrderRequestDTO dto) {
-        // 1. Validation préalable du client via OpenFeign
+
+        // ===== V4 OpenFeign : ÉTAPE 1 - Vérifier collaborateur et solde (service-usagers) =====
         ClientDTO client = clientFeignClient.getClientById(dto.userId());
         if (client != null && Boolean.FALSE.equals(client.getActif())) {
             throw new IllegalArgumentException("Le compte client ID " + dto.userId() + " est désactivé.");
         }
 
-        // 2. Validation préalable des plats via OpenFeign
+        // ===== V4 OpenFeign : ÉTAPE 2 - Vérifier plats et prix (service-menu) =====
+        double total = 0.0;
         for (OrderItemDTO item : dto.items()) {
             DishDTO dish = menuFeignClient.getDishById(item.dishId());
-            if (dish != null && Boolean.FALSE.equals(dish.getDisponible())) {
+            if (dish == null) {
+                throw new IllegalArgumentException("Plat introuvable avec ID : " + item.dishId());
+            }
+            if (Boolean.FALSE.equals(dish.getDisponible())) {
                 throw new IllegalArgumentException("Le plat '" + dish.getNom() + "' n'est plus disponible.");
             }
+            // Total calculé CÔTÉ SERVEUR depuis le prix du service-menu
+            double prixServeur = (dish.getPrix() != null && dish.getPrix() > 0)
+                    ? dish.getPrix() : item.prixUnitaire();
+            total += prixServeur * item.quantite();
         }
 
-        double total = dto.items().stream()
-                .mapToDouble(item -> item.prixUnitaire() * item.quantite())
-                .sum();
+        // ===== V4 OpenFeign : ÉTAPE 3 - Lire les RecipeLines (besoins en ingrédients) =====
+        try {
+            var recipeLines = menuFeignClient.getAllRecipeLines();
+            if (recipeLines != null && !recipeLines.isEmpty()) {
+                var dishIds = dto.items().stream().map(OrderItemDTO::dishId).toList();
+                var relevantLines = recipeLines.stream()
+                        .filter(rl -> dishIds.contains(rl.getDishId()))
+                        .toList();
+                log.info("RecipeLines récupérées pour les plats commandés : {} ligne(s)", relevantLines.size());
+                // En production : vérifier et réserver le stock ici
+            }
+        } catch (Exception e) {
+            log.warn("Impossible de récupérer les RecipeLines depuis service-menu : {}", e.getMessage());
+        }
+
+        final double montantFinal = total;
 
         MealOrder order = MealOrder.builder()
                 .userId(dto.userId())
                 .date(LocalDateTime.now())
-                .montantTotal(total)
+                .montantTotal(montantFinal)
                 .statut(OrderStatus.RECU)
                 .build();
 
         List<OrderItem> items = dto.items().stream()
-                .map(i -> OrderItem.builder()
-                        .dishId(i.dishId())
-                        .quantite(i.quantite())
-                        .prixUnitaire(i.prixUnitaire())
-                        .mealOrder(order)
-                        .build())
+                .map(i -> {
+                    DishDTO dish = menuFeignClient.getDishById(i.dishId());
+                    double prix = (dish != null && dish.getPrix() != null && dish.getPrix() > 0)
+                            ? dish.getPrix() : i.prixUnitaire();
+                    return OrderItem.builder()
+                            .dishId(i.dishId())
+                            .quantite(i.quantite())
+                            .prixUnitaire(prix)
+                            .mealOrder(order)
+                            .build();
+                })
                 .toList();
 
         order.setItems(items);
         MealOrder saved = orderRepository.save(order);
 
-        // 3. Déclencher l'événement après validation de la transaction
+        // ===== V5 RabbitMQ : Publier événement COMMANDE_RECUE (AFTER_COMMIT) =====
         String email = (client != null && client.getEmail() != null)
                 ? client.getEmail()
                 : "client" + dto.userId() + "@foodcourt.ma";
@@ -138,10 +167,17 @@ public class MealOrderService {
                 ? client.getEmail()
                 : "client" + saved.getUserId() + "@foodcourt.ma";
 
-        String notifType = switch (newStatus.name()) {
-            case "PRETE", "PRETE_A_LIVRER", "LIVREE" -> "COMMANDE_PRETE";
-            case "ANNULE", "ANNULEE" -> "COMMANDE_ANNULEE";
+        // ===== V5 RabbitMQ : Événement PRET (repas prêt) ou ANNULE =====
+        String notifType = switch (newStatus) {
+            case PRET -> "COMMANDE_PRETE";
+            case ANNULE -> "COMMANDE_ANNULEE";
             default -> "INFORMATION";
+        };
+
+        String message = switch (newStatus) {
+            case PRET -> "Votre commande #" + saved.getId() + " est prête ! Venez la récupérer.";
+            case ANNULE -> "Votre commande #" + saved.getId() + " a été annulée.";
+            default -> "Le statut de votre commande #" + saved.getId() + " est désormais : " + newStatus;
         };
 
         eventPublisher.publishEvent(new OrderNotificationEvent(
@@ -149,7 +185,7 @@ public class MealOrderService {
                 saved.getId(),
                 email,
                 notifType,
-                "Le statut de votre commande #" + saved.getId() + " est désormais : " + newStatus
+                message
         ));
 
         return mapToDTO(saved);

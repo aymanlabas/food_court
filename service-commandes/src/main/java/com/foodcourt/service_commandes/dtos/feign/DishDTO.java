@@ -5,6 +5,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -13,6 +15,8 @@ public class DishDTO {
     private Long id;
     private String nom;
     private String description;
-    private Double prix;
+    private Double prix;           // legacy double field
+    private BigDecimal prixExact;  // mapped from service-menu's BigDecimal prix
     private Boolean disponible;
+    private String categorie;
 }

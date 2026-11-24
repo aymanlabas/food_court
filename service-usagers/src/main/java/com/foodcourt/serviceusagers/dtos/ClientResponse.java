@@ -9,6 +9,7 @@ public record ClientResponse(
         String telephone,
         String adresseLivraison,
         boolean actif,
+        double solde,
         Instant creeLe
 ) {
 }

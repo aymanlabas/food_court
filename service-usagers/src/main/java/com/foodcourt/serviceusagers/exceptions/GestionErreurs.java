@@ -31,6 +31,11 @@ public class GestionErreurs {
                 .body(new ErreurReponse("Un usager avec cet email existe déjà"));
     }
 
+    @ExceptionHandler({IllegalStateException.class, IllegalArgumentException.class})
+    public ResponseEntity<ErreurReponse> erreurMetier(RuntimeException exception) {
+        return ResponseEntity.badRequest().body(new ErreurReponse(exception.getMessage()));
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErreurValidation> validation(MethodArgumentNotValidException exception) {
         Map<String, String> erreurs = new LinkedHashMap<>();

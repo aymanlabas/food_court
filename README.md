@@ -1,146 +1,61 @@
 # Système Food-Court (Restauration d'Entreprise)
 
 ## 1. Description du Projet
-Système distribué de gestion des commandes de repas pour les collaborateurs d'une entreprise via leur badge cantine. L'application permet la prise de commande, le suivi en cuisine en temps réel, la gestion automatisée des stocks d'ingrédients et de la disponibilité des recettes, le débit/remboursement du solde cantine, ainsi que la notification aux collaborateurs.
+Système distribué de gestion des commandes de repas pour les collaborateurs d'une entreprise via leur badge cantine. L'application permet la prise de commande, le suivi en cuisine en temps réel, la gestion automatisée des stocks d'ingrédients et de la disponibilité des recettes, le débit/remboursement du solde cantine, ainsi que la notification asynchrone par email aux collaborateurs.
 
 ---
 
-## 2. Architecture Globale et Ports des Microservices
+## 2. Architecture Globale et Ports
 
-| Composant | Rôle & Responsabilité | Port par Défaut |
-| :--- | :--- | :--- |
-| **eureka-server** | Service Discovery (Enregistrement et découverte dynamique) | `8761` |
-| **api-gateway** | Point d'entrée unique, routage dynamique et Load Balancing | `8080` |
-| **config-server** | Centralisation des configurations applicatives | `8888` |
-| **service-commandes** | Gestion des tickets repas (`MealOrder`) et lignes (`OrderItem`) | `8081` |
-| **service-menu** | Gestion de la carte (`Dish`), ingrédients et recettes (`RecipeLine`) | `8082` |
-| **service-usagers** | Gestion des collaborateurs (`User`), solde cantine et paiements | `8083` |
-| **service-notification** | Consommation des événements et envoi des alertes emails | `8084` |
+### Microservices Spring Boot / Spring Cloud
 
-### Démarrage local
+| Composant | Rôle & Responsabilité | Port par Défaut | Base de Données / Broker |
+| :--- | :--- | :--- | :--- |
+| **eureka-server** | Service Discovery (Enregistrement et découverte dynamique) | `8761` | — |
+| **api-gateway** | Point d'entrée unique, routage dynamique et Load Balancing | `8080` | — |
+| **config-server** | Centralisation des configurations applicatives (`config-repo/`) | `8888` | — |
+| **service-commandes** | Gestion des tickets repas (`MealOrder`), lignes (`OrderItem`), validation OpenFeign/Resilience4j et **Producer** d'événements | `8081` | PostgreSQL (`:5433`) + RabbitMQ (`AFTER_COMMIT`) |
+| **service-menu** | Gestion de la carte (`Dish`), ingrédients et recettes (`RecipeLine`) | `8082` | H2 In-Memory |
+| **service-usagers** | Gestion des collaborateurs (`User`), solde cantine et paiements | `8083` | H2 In-Memory |
+| **service-notification** | **Consumer** des événements JSON, persistance de l'historique et envoi d'alertes emails | `8084` | H2 In-Memory + RabbitMQ + SMTP Mailpit |
 
-Depuis la racine du projet, lancer les modules dans cet ordre :
+### Infrastructure Docker (Persistance, Broker & SMTP)
 
-```bash
-mvn -pl eureka-server spring-boot:run
-mvn -pl config-server spring-boot:run
-mvn -pl service-commandes spring-boot:run
-mvn -pl service-notification spring-boot:run
-mvn -pl api-gateway spring-boot:run
-```
+| Conteneur Docker | Image | Ports Exposés | Identifiants / Configuration |
+| :--- | :--- | :--- | :--- |
+| **postgres-foodcourt** | `postgres:16` | `5433` (hôte) -> `5432` | DB: `foodcourt_commandes_db` / User: `postgres` / Pass: `postgres` |
+| **rabbitmq-foodcourt** | `rabbitmq:3-management` | `5672` (AMQP) / `15672` (Web UI) | User: `guest` / Pass: `guest` (`http://localhost:15672`) |
+| **mailpit-foodcourt** | `axllent/mailpit` | `1025` (SMTP) / `8025` (Web UI) | Interface Web de test : `http://localhost:8025` |
 
-Le Config Server lit `config-repo/` (modifiable avec `CONFIG_REPO_PATH`). La gateway expose les commandes via
-`/api/orders/**`, les notifications via `/api/notifications/**` et les usagers via `/api/usagers/**`.
+---
 
-Le service `service-usagers` expose la gestion des clients, restaurants et livreurs sur le port `8083`.
-
-### API notifications
-
-- `POST /api/notifications` crée une notification (`userId`, `recipient`, `type`, `message`, et éventuellement `orderId`).
-- `GET /api/notifications/user/{userId}` retourne les notifications d’un collaborateur.
-- `PATCH /api/notifications/{id}/read` marque une notification comme lue.
-
-### Schéma d'Architecture Logique
+## 3. Schéma d'Architecture Actualisé (Jalon V5)
 
 ```text
-               +-------------------------------------------------+
-               |           Eureka Server (Port: 8761)            |
-               +-------------------------------------------------+
-                                       ^
-                                       | (Enregistrement & Découverte)
- [ Client / Frontend ]                 |
-           |                           v
-           v                   +---------------+
-     +-----------------------> |  API Gateway  | (Port: 8080)
-                               +---------------+
-                                       | (Routage dynamique)
-           +---------------------------+---------------------------+
-           |                           |                           |
-           v                           v                           v
-  +------------------+        +------------------+        +------------------+
-  | service-commandes|        |   service-menu   |        | service-usagers  |
-  |   (Port: 8081)   |        |   (Port: 8082)   |        |   (Port: 8083)   |
-  |  [DB: commandes] |        |    [DB: menu]    |        |   [DB: usagers]  |
-  +------------------+        +------------------+        +------------------+
-
-
-```
-## 3. Diagramme de Classes UML Global (Gestion des Références Distantes)
-
-```mermaid
-classDiagram
-    namespace Service_Commandes {
-        class MealOrder {
-            +Long id
-            +Long userId
-            +LocalDateTime date
-            +Double montantTotal
-            +OrderStatus statut
-        }
-        class OrderItem {
-            +Long id
-            +Long dishId
-            +int quantite
-            +Double prixUnitaire
-        }
-        class OrderStatus {
-            <<enumeration>>
-            RECU
-            EN_PREPARATION
-            PRET
-            SERVI
-            ANNULE
-        }
-    }
-
-    namespace Service_Usagers {
-        class User {
-            +Long id
-            +String nom
-            +String email
-            +Double soldeCantine
-            +String regimeAlimentaire
-        }
-        class Payment {
-            +Long id
-            +Long mealOrderId
-            +Double montant
-            +String moyen
-            +String statut
-        }
-    }
-
-    namespace Service_Menu {
-        class Dish {
-            +Long id
-            +String nom
-            +Double prix
-            +String categorie
-            +String allergenes
-            +Boolean disponible
-        }
-        class Ingredient {
-            +Long id
-            +String nom
-            +Double stock
-            +String unite
-            +Double seuilAlerte
-        }
-        class RecipeLine {
-            +Long id
-            +Long dishId
-            +Long ingredientId
-            +Double quantite
-        }
-    }
-
-    MealOrder "1" *-- "1..*" OrderItem : contient
-    MealOrder --> OrderStatus : statut
-    User "1" --> "0..*" Payment : effectue
-    Dish "1" *-- "0..*" RecipeLine : compose
-    Ingredient "1" *-- "0..*" RecipeLine : utilise
-
-    MealOrder ..> User : référence par userId ---->
-    OrderItem ..> Dish : référence par dishId ---->
-    Payment ..> MealOrder : référence par mealOrderId ---->
-```
+                        +---------------------------------------+
+                        |     Eureka Server (Port: 8761)        |
+                        |     Config Server (Port: 8888)        |
+                        +---------------------------------------+
+                                            ^
+                                            | (Découverte & Config)
+  [ Client / Postman ]                      v
+            |                    +---------------------+
+            +--- HTTP :8080 ---> |     API Gateway     | (Port: 8080)
+                                 +---------------------+
+                                            | (Routage dynamique)
+        +-----------------------------------+-----------------------------------+
+        | /api/orders/**                    | /api/usagers/**                   | /api/notifications/**
+        v                                   v                                   v
++-----------------------+  OpenFeign +   +-----------------------+      +-----------------------+
+|  service-commandes    | --- Circuit -> |    service-usagers    |      | service-notification  |
+|     (Port: 8081)      |    Breaker     |     (Port: 8083)      |      |     (Port: 8084)      |
++-----------------------+                +-----------------------+      +-----------------------+
+     |             |                                  |                      |       ^       |
+     | JDBC        | AMQP :5672                       | JDBC                 | JDBC  |       | SMTP
+     | :5433       | (AFTER_COMMIT)                   v                      v       |       | :1025
+     v             v                           [ H2 : usagers ]       [ H2 : notif ] |       v
++------------+  +---------------------------------------------------+                |  +------------+
+| PostgreSQL |  |            RabbitMQ Broker (Port: 5672)           |                |  |  Mailpit   |
+| (Docker)   |  | Exchange : foodcourt.orders.exchange (Topic)      | --- JSON ------+  | SMTP :1025 |
+|            |  | Queue    : foodcourt.notifications.queue          |  @RabbitListener  | Web  :8025 |
++------------+  +---------------------------------------------------+                   +------------+

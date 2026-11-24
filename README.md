@@ -31,6 +31,8 @@ Système distribué de gestion des commandes de repas pour les collaborateurs d'
 
 ## 3. Schéma d'Architecture Actualisé (Jalon V5)
 
+![Architecture Microservices & Couches — Food Court](docs/architecture-v4-v5.jpg)
+
 ```text
                         +---------------------------------------+
                         |     Eureka Server (Port: 8761)        |

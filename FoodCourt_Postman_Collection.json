@@ -1,0 +1,166 @@
+{
+  "info": {
+    "name": "Food Court - Demo Controle (V4 OpenFeign & V5 RabbitMQ)",
+    "_postman_id": "foodcourt-v4-v5-demo-collection",
+    "description": "Collection complète pour la démonstration V4 (OpenFeign) et V5 (RabbitMQ) via API Gateway (port 8089).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Créer Client (service-usagers)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nom\": \"Aymen Labas\",\n  \"email\": \"aymen@foodcourt.ma\",\n  \"telephone\": \"0612345678\",\n  \"adresseLivraison\": \"Casablanca\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8089/api/usagers/clients",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8089",
+          "path": ["api", "usagers", "clients"]
+        }
+      }
+    },
+    {
+      "name": "2. Recharger Badge Client (+200 MAD)",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8089/api/usagers/clients/1/recharger?montant=200",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8089",
+          "path": ["api", "usagers", "clients", "1", "recharger"],
+          "query": [
+            { "key": "montant", "value": "200" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "3. Créer Plat (service-menu)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nom\": \"Tajine Poulet\",\n  \"prix\": 45.00,\n  \"categorie\": \"PLAT_PRINCIPAL\",\n  \"allergenes\": [],\n  \"disponible\": true\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8089/api/v1/dishes",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8089",
+          "path": ["api", "v1", "dishes"]
+        }
+      }
+    },
+    {
+      "name": "4. Passer Commande - V4 OpenFeign (Prix serveur + RecipeLines + Event RECUE)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"userId\": 1,\n  \"items\": [\n    {\n      \"dishId\": 1,\n      \"quantite\": 2,\n      \"prixUnitaire\": 1.0\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8089/api/orders",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8089",
+          "path": ["api", "orders"]
+        }
+      }
+    },
+    {
+      "name": "5. Commande Enrichie - V4 OpenFeign (Client + Plats)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8089/api/orders/1/enrichie",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8089",
+          "path": ["api", "orders", "1", "enrichie"]
+        }
+      }
+    },
+    {
+      "name": "6. Payer Commande - V4 OpenFeign (service-usagers -> service-commandes)",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8089/api/usagers/clients/1/payer?orderId=1",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8089",
+          "path": ["api", "usagers", "clients", "1", "payer"],
+          "query": [
+            { "key": "orderId", "value": "1" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "7. Changer Statut PRET - V5 RabbitMQ (COMMANDE_PRETE)",
+      "request": {
+        "method": "PATCH",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8089/api/orders/1/status?status=PRET",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8089",
+          "path": ["api", "orders", "1", "status"],
+          "query": [
+            { "key": "status", "value": "PRET" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "8. Changer Statut ANNULE - V5 RabbitMQ (COMMANDE_ANNULEE)",
+      "request": {
+        "method": "PATCH",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8089/api/orders/1/status?status=ANNULE",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8089",
+          "path": ["api", "orders", "1", "status"],
+          "query": [
+            { "key": "status", "value": "ANNULE" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "9. Vérifier Notifications Reçues (service-notification)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8089/api/notifications/user/1",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8089",
+          "path": ["api", "notifications", "user", "1"]
+        }
+      }
+    }
+  ]
+}

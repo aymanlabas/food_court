@@ -1,10 +1,6 @@
 FROM maven:3.9.6-eclipse-temurin-21-alpine AS build
 WORKDIR /app
-COPY pom.xml ./pom.xml
-COPY service-usagers/pom.xml ./service-usagers/pom.xml
-RUN mvn -B dependency:go-offline -f pom.xml || true
-
-COPY service-usagers/src ./service-usagers/src
+COPY . .
 RUN mvn -B clean package -DskipTests -pl service-usagers -am
 
 FROM eclipse-temurin:21-jre-alpine

@@ -1,10 +1,6 @@
 FROM maven:3.9.6-eclipse-temurin-21-alpine AS build
 WORKDIR /app
-COPY pom.xml ./pom.xml
-COPY api-gateway/pom.xml ./api-gateway/pom.xml
-RUN mvn -B dependency:go-offline -f pom.xml || true
-
-COPY api-gateway/src ./api-gateway/src
+COPY . .
 RUN mvn -B clean package -DskipTests -pl api-gateway -am
 
 FROM eclipse-temurin:21-jre-alpine

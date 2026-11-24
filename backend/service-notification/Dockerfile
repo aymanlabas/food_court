@@ -1,10 +1,6 @@
 FROM maven:3.9.6-eclipse-temurin-21-alpine AS build
 WORKDIR /app
-COPY pom.xml ./pom.xml
-COPY service-notification/pom.xml ./service-notification/pom.xml
-RUN mvn -B dependency:go-offline -f pom.xml || true
-
-COPY service-notification/src ./service-notification/src
+COPY . .
 RUN mvn -B clean package -DskipTests -pl service-notification -am
 
 FROM eclipse-temurin:21-jre-alpine
@@ -14,4 +10,3 @@ USER appuser
 COPY --from=build /app/service-notification/target/*.jar app.jar
 EXPOSE 8084
 ENTRYPOINT ["java", "-jar", "app.jar"]
-

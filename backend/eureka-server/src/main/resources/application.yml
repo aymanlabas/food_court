@@ -31,3 +31,4 @@ spring:
 eureka:
   instance:
     hostname: eureka-server
+

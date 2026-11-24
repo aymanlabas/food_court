@@ -1,13 +1,12 @@
-FROM eclipse-temurin:21-jdk-alpine AS build
-WORKDIR /workspace
-COPY pom.xml ../pom.xml
-COPY eureka-server/pom.xml pom.xml
-COPY eureka-server/src src
-
-RUN ../mvnw clean package -DskipTests 2>/dev/null || true
+FROM maven:3.9.6-eclipse-temurin-21-alpine AS build
+WORKDIR /app
+COPY . .
+RUN mvn -B clean package -DskipTests -pl eureka-server -am
 
 FROM eclipse-temurin:21-jre-alpine
-VOLUME /tmp
-ARG JAR_FILE=eureka-server/target/*.jar
-COPY ${JAR_FILE} app.jar
-ENTRYPOINT ["java","-Djava.security.egd=file:/dev/./urandom","-jar","/app.jar"]
+WORKDIR /app
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+USER appuser
+COPY --from=build /app/eureka-server/target/*.jar app.jar
+EXPOSE 8761
+ENTRYPOINT ["java", "-jar", "app.jar"]

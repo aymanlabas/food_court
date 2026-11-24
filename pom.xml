@@ -25,6 +25,7 @@
         <module>config-server</module>
         <module>service-notification</module>
         <module>service-usagers</module>
+        <module>service-menu</module>
     </modules>
 
     <properties>

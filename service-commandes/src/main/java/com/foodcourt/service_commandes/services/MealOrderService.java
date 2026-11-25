@@ -15,15 +15,19 @@ import com.foodcourt.service_commandes.entities.OrderStatus;
 import com.foodcourt.service_commandes.exceptions.ResourceNotFoundException;
 import com.foodcourt.service_commandes.repositories.MealOrderRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class MealOrderService {
 
     private final MealOrderRepository orderRepository;
@@ -31,15 +35,30 @@ public class MealOrderService {
     private final MenuFeignClient menuFeignClient;
     private final ApplicationEventPublisher eventPublisher;
 
-    @Transactional
     public MealOrderResponseDTO createOrder(MealOrderRequestDTO dto) {
-        // 1. Validation préalable du client via OpenFeign
+        return createOrder(dto, null);
+    }
+
+    @Transactional
+    public MealOrderResponseDTO createOrder(MealOrderRequestDTO dto, String idempotencyKey) {
+        String normalizedKey = (idempotencyKey != null && !idempotencyKey.isBlank())
+                ? idempotencyKey.trim()
+                : null;
+
+        if (normalizedKey != null) {
+            Optional<MealOrder> existingOrder = orderRepository.findByIdempotencyKey(normalizedKey);
+            if (existingOrder.isPresent()) {
+                log.info("Rejeu idempotent détecté pour Idempotency-Key='{}' -> retour commande #{}",
+                        normalizedKey, existingOrder.get().getId());
+                return mapToDTO(existingOrder.get());
+            }
+        }
+
         ClientDTO client = clientFeignClient.getClientById(dto.userId());
         if (client != null && Boolean.FALSE.equals(client.getActif())) {
             throw new IllegalArgumentException("Le compte client ID " + dto.userId() + " est désactivé.");
         }
 
-        // 2. Validation préalable des plats via OpenFeign
         for (OrderItemDTO item : dto.items()) {
             DishDTO dish = menuFeignClient.getDishById(item.dishId());
             if (dish != null && Boolean.FALSE.equals(dish.getDisponible())) {
@@ -56,6 +75,7 @@ public class MealOrderService {
                 .date(LocalDateTime.now())
                 .montantTotal(total)
                 .statut(OrderStatus.RECU)
+                .idempotencyKey(normalizedKey)
                 .build();
 
         List<OrderItem> items = dto.items().stream()
@@ -68,9 +88,19 @@ public class MealOrderService {
                 .toList();
 
         order.setItems(items);
-        MealOrder saved = orderRepository.save(order);
 
-        // 3. Déclencher l'événement après validation de la transaction
+        MealOrder saved;
+        try {
+            saved = orderRepository.saveAndFlush(order);
+        } catch (DataIntegrityViolationException ex) {
+            if (normalizedKey != null) {
+                return orderRepository.findByIdempotencyKey(normalizedKey)
+                        .map(this::mapToDTO)
+                        .orElseThrow(() -> ex);
+            }
+            throw ex;
+        }
+
         String email = (client != null && client.getEmail() != null)
                 ? client.getEmail()
                 : "client" + dto.userId() + "@foodcourt.ma";
@@ -84,6 +114,11 @@ public class MealOrderService {
         ));
 
         return mapToDTO(saved);
+    }
+
+    public boolean existsByIdempotencyKey(String idempotencyKey) {
+        return idempotencyKey != null && !idempotencyKey.isBlank()
+                && orderRepository.findByIdempotencyKey(idempotencyKey.trim()).isPresent();
     }
 
     public List<MealOrderResponseDTO> getAllOrders() {

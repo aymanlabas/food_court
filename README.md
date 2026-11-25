@@ -60,7 +60,7 @@ Système distribué de gestion des commandes de repas pour les collaborateurs d'
      | AMQP :5672                                                                   |  | Mailpit |
      | (AFTER_COMMIT)                                                               |  |Web: 8025|
      v                                                                              |  +---------+
-+-----------------------------------------------------------------------------------+
-|                        RabbitMQ Broker (Port: 5672 / UI: 15672)                   |
++-------------------------------------------------------------------------------------------+
+|                        RabbitMQ Broker (Port: 5672 / UI: 15672)                           |
 |   Exchange : foodcourt.orders.exchange (Topic) -> Queue : foodcourt.notifications.queue   |
-+-----------------------------------------------------------------------------------+
++-------------------------------------------------------------------------------------------+

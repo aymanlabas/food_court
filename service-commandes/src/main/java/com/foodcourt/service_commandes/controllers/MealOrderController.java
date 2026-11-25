@@ -19,15 +19,25 @@ import java.util.List;
 @RequiredArgsConstructor
 public class MealOrderController {
 
-    // http://localhost:8080/api/orders/config-test
     private final MealOrderService orderService;
-    @Value("${foodcourt.message.bienvenue:Message par defaut}")
 
+    @Value("${foodcourt.message.bienvenue:Message par defaut}")
     private String messageBienvenue;
 
     @PostMapping
-    public ResponseEntity<MealOrderResponseDTO> createOrder(@Valid @RequestBody MealOrderRequestDTO dto) {
-        return new ResponseEntity<>(orderService.createOrder(dto), HttpStatus.CREATED);
+    public ResponseEntity<MealOrderResponseDTO> createOrder(
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+            @Valid @RequestBody MealOrderRequestDTO dto) {
+
+        boolean isReplay = orderService.existsByIdempotencyKey(idempotencyKey);
+        MealOrderResponseDTO response = orderService.createOrder(dto, idempotencyKey);
+
+        if (isReplay) {
+            return ResponseEntity.ok()
+                    .header("X-Idempotent-Replay", "true")
+                    .body(response);
+        }
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @GetMapping

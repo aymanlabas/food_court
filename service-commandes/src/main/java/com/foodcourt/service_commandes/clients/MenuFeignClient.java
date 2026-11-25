@@ -8,6 +8,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 @FeignClient(name = "service-menu", fallback = MenuFeignClientFallback.class)
 public interface MenuFeignClient {
 
-    @GetMapping("/api/dishes/{id}")
+    @GetMapping("/api/v1/dishes/{id}")
     DishDTO getDishById(@PathVariable("id") Long id);
 }

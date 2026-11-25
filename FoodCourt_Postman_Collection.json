@@ -1,8 +1,8 @@
 {
   "info": {
-    "name": "Food Court - Demo Controle (V4 OpenFeign & V5 RabbitMQ)",
-    "_postman_id": "foodcourt-v4-v5-demo-collection",
-    "description": "Collection complète pour la démonstration V4 (OpenFeign) et V5 (RabbitMQ) via API Gateway (port 8089).",
+    "name": "Food Court - Démo Contrôle Complète (V1 à V6)",
+    "_postman_id": "foodcourt-full-demo-collection",
+    "description": "Collection complète intégrant tous les tests de la grille d'évaluation (CRUD V1, Gateway/Eureka V2-V3, OpenFeign V4, RabbitMQ V5 et Idempotence V6) via API Gateway (port 8089).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -159,6 +159,48 @@
           "host": ["localhost"],
           "port": "8089",
           "path": ["api", "notifications", "user", "1"]
+        }
+      }
+    },
+    {
+      "name": "10. Test Idempotence V6 (POST avec Idempotency-Key)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Idempotency-Key", "value": "DEMO-KEY-001" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"userId\": 1,\n  \"items\": [\n    {\n      \"dishId\": 1,\n      \"quantite\": 1,\n      \"prixUnitaire\": 45.0\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8089/api/orders",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8089",
+          "path": ["api", "orders"]
+        }
+      }
+    },
+    {
+      "name": "11. Test Rejeu Idempotent V6 (Rejouer la même requête -> 200 OK + Header X-Idempotent-Replay)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Idempotency-Key", "value": "DEMO-KEY-001" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"userId\": 1,\n  \"items\": [\n    {\n      \"dishId\": 1,\n      \"quantite\": 1,\n      \"prixUnitaire\": 45.0\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8089/api/orders",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8089",
+          "path": ["api", "orders"]
         }
       }
     }

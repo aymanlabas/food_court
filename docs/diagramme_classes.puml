@@ -1,0 +1,147 @@
+@startuml
+!theme plain
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+skinparam shadowing false
+skinparam roundcorner 8
+
+title Système Food Court - Diagramme de Classes des Microservices (Jalons V1 à V6)\nRespect du principe Database-per-Service & Références Distantes
+
+' ====================================================================
+' PACKAGE : SERVICE-USAGERS (Port: 8085 / 8083, BDD H2: usagers)
+' ====================================================================
+package "service-usagers" #E8F4F8 {
+    class Client <<Entity>> {
+        - id : Long
+        - nom : String
+        - email : String
+        - telephone : String
+        - adresseLivraison : String
+        - actif : boolean
+        - solde : double
+        - creeLe : Instant
+        + crediterSolde(montant: double) : void
+        + debiterSolde(montant: double) : void
+    }
+
+    class Livreur <<Entity>> {
+        - id : Long
+        - nom : String
+        - telephone : String
+        - disponible : boolean
+    }
+
+    class Restaurant <<Entity>> {
+        - id : Long
+        - nom : String
+        - adresse : String
+        - ouvert : boolean
+    }
+}
+
+' ====================================================================
+' PACKAGE : SERVICE-MENU (Port: 8082, BDD H2: menudb)
+' ====================================================================
+package "service-menu" #FFF4E5 {
+    class Dish <<Entity>> {
+        - id : Long
+        - nom : String
+        - description : String
+        - prix : double
+        - categorie : String
+        - disponible : boolean
+    }
+
+    class Ingredient <<Entity>> {
+        - id : Long
+        - nom : String
+        - stockActuel : double
+        - uniteMesure : String
+    }
+
+    class RecipeLine <<Entity>> {
+        - id : Long
+        - dishId : Long
+        - ingredientId : Long
+        - quantiteRequise : double
+    }
+
+    Dish "1" *-- "0..*" RecipeLine : compose
+    Ingredient "1" <-- "0..*" RecipeLine : reference
+}
+
+' ====================================================================
+' PACKAGE : SERVICE-COMMANDES (Port: 8081, BDD: commandesdb)
+' ====================================================================
+package "service-commandes" #EAF7ED {
+    enum OrderStatus <<enumeration>> {
+        RECU
+        EN_PREPARATION
+        PRET
+        LIVRE
+        ANNULE
+    }
+
+    class MealOrder <<Entity>> {
+        - id : Long
+        - userId : Long <<Distant Ref: Client.id>>
+        - date : LocalDateTime
+        - montantTotal : double
+        - statut : OrderStatus
+        - idempotencyKey : String <<V6 Idempotency>>
+        + ajouterItem(item: OrderItem) : void
+    }
+
+    class OrderItem <<Entity>> {
+        - id : Long
+        - dishId : Long <<Distant Ref: Dish.id>>
+        - quantite : int
+        - prixUnitaire : double
+    }
+
+    MealOrder "1" *-- "1..*" OrderItem : contient
+    MealOrder --> OrderStatus : statut
+}
+
+' ====================================================================
+' PACKAGE : SERVICE-NOTIFICATION (Port: 8084, BDD H2: notificationdb)
+' ====================================================================
+package "service-notification" #FBEAEB {
+    enum NotificationType <<enumeration>> {
+        COMMANDE_RECUE
+        COMMANDE_PRETE
+        COMMANDE_ANNULEE
+    }
+
+    class Notification <<Entity>> {
+        - id : Long
+        - userId : Long <<Distant Ref: Client.id>>
+        - orderId : Long <<Distant Ref: MealOrder.id>>
+        - destinataireEmail : String
+        - message : String
+        - dateEnvoi : LocalDateTime
+        - type : NotificationType
+    }
+
+    Notification --> NotificationType : type
+}
+
+' ====================================================================
+' RELATIONS DISTANTES (OpenFeign Synchrone & RabbitMQ Asynchrone)
+' ====================================================================
+
+MealOrder ..> Client : "<<OpenFeign>>\nClientFeignClient\nValide userId & actif"
+MealOrder ..> Dish : "<<OpenFeign>>\nMenuFeignClient\nValide disponibilité & prix"
+Client ..> MealOrder : "<<OpenFeign>>\nCommandesFeignClient\nLecture montant & paiement"
+
+MealOrder .[#blue].> Notification : "<<RabbitMQ (Topic AMQP)>>\nOrderNotificationEvent\n(Asynchrone AFTER_COMMIT)"
+
+note bottom of MealOrder
+  <b>Jalons implémentés :</b>
+  • <b>V1 :</b> Architecture en couches isolées
+  • <b>V4 :</b> Références distantes gérées par IDs sans clé étrangère SQL
+  • <b>V5 :</b> Broker RabbitMQ découplé
+  • <b>V6 :</b> Résilience OpenFeign (CircuitBreaker) & idempotencyKey
+end note
+
+@enduml

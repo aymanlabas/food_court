@@ -17,11 +17,13 @@ import com.foodcourt.service_commandes.repositories.MealOrderRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -33,8 +35,24 @@ public class MealOrderService {
     private final MenuFeignClient menuFeignClient;
     private final ApplicationEventPublisher eventPublisher;
 
-    @Transactional
     public MealOrderResponseDTO createOrder(MealOrderRequestDTO dto) {
+        return createOrder(dto, null);
+    }
+
+    @Transactional
+    public MealOrderResponseDTO createOrder(MealOrderRequestDTO dto, String idempotencyKey) {
+        String normalizedKey = (idempotencyKey != null && !idempotencyKey.isBlank())
+                ? idempotencyKey.trim()
+                : null;
+
+        if (normalizedKey != null) {
+            Optional<MealOrder> existingOrder = orderRepository.findByIdempotencyKey(normalizedKey);
+            if (existingOrder.isPresent()) {
+                log.info("Rejeu idempotent détecté pour Idempotency-Key='{}' -> retour commande #{}",
+                        normalizedKey, existingOrder.get().getId());
+                return mapToDTO(existingOrder.get());
+            }
+        }
 
         // ===== V4 OpenFeign : ÉTAPE 1 - Vérifier collaborateur et solde (service-usagers) =====
         ClientDTO client = clientFeignClient.getClientById(dto.userId());
@@ -80,6 +98,7 @@ public class MealOrderService {
                 .date(LocalDateTime.now())
                 .montantTotal(montantFinal)
                 .statut(OrderStatus.RECU)
+                .idempotencyKey(normalizedKey)
                 .build();
 
         List<OrderItem> items = dto.items().stream()
@@ -97,7 +116,18 @@ public class MealOrderService {
                 .toList();
 
         order.setItems(items);
-        MealOrder saved = orderRepository.save(order);
+
+        MealOrder saved;
+        try {
+            saved = orderRepository.saveAndFlush(order);
+        } catch (DataIntegrityViolationException ex) {
+            if (normalizedKey != null) {
+                return orderRepository.findByIdempotencyKey(normalizedKey)
+                        .map(this::mapToDTO)
+                        .orElseThrow(() -> ex);
+            }
+            throw ex;
+        }
 
         // ===== V5 RabbitMQ : Publier événement COMMANDE_RECUE (AFTER_COMMIT) =====
         String email = (client != null && client.getEmail() != null)
@@ -113,6 +143,11 @@ public class MealOrderService {
         ));
 
         return mapToDTO(saved);
+    }
+
+    public boolean existsByIdempotencyKey(String idempotencyKey) {
+        return idempotencyKey != null && !idempotencyKey.isBlank()
+                && orderRepository.findByIdempotencyKey(idempotencyKey.trim()).isPresent();
     }
 
     public List<MealOrderResponseDTO> getAllOrders() {

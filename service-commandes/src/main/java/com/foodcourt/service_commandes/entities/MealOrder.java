@@ -11,17 +11,21 @@ import java.util.List;
 @Entity
 @Table(name = "meal_orders")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+
+
 public class MealOrder {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
     private Long userId;
     private LocalDateTime date;
     private Double montantTotal;
 
     @Enumerated(EnumType.STRING)
     private OrderStatus statut;
+
+    @Column(unique = true)
+    private String idempotencyKey;
 
     @OneToMany(mappedBy = "mealOrder", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonManagedReference
